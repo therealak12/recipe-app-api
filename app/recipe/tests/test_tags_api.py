@@ -22,7 +22,7 @@ class PublicTagsApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    def test_loging_required(self):
+    def test_login_required(self):
         response = self.client.get(TAGS_URL)
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

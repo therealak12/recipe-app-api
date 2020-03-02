@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Tag
+from core.models import Tag, Recipe
 from recipe.serializers import TagSerializer
 
 
@@ -76,3 +76,23 @@ class PrivateTagsApiTests(TestCase):
         response = self.client.post(TAGS_URL, payload)
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_retrieve_assigned_tags_only(self):
+        """Test getting only tags that are assigned to some recipe"""
+        tag1 = Tag.objects.create(user=self.user, name='tag name 1')
+        tag2 = Tag.objects.create(user=self.user, name='tag name 2')
+
+        recipe = Recipe.objects.create(
+            title='recipe 1',
+            time_minutes=10,
+            price=35.00,
+            user=self.user
+        )
+        recipe.tags.add(tag1)
+
+        response = self.client.get(TAGS_URL, {'assigned_only': 1})
+
+        tag1_serializer = TagSerializer(tag1)
+        tag2_serializer = TagSerializer(tag2)
+        self.assertIn(tag1_serializer.data, response.data)
+        self.assertNotIn(tag2_serializer.data, response.data)

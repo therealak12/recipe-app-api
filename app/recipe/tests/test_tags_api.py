@@ -12,6 +12,16 @@ from recipe.serializers import TagSerializer
 TAGS_URL = reverse('recipe:tag-list')
 
 
+def create_recipe(user, **params):
+    defaults = {
+        'title': 'recipe 1',
+        'time_minutes': 10,
+        'price': 35.00,
+    }
+    defaults.update(params)
+    return Recipe.objects.create(user=user, **defaults)
+
+
 def create_user(email='testemail@example.com', password='testpass'):
     return get_user_model().objects.create_user(email=email, password=password)
 
@@ -82,12 +92,7 @@ class PrivateTagsApiTests(TestCase):
         tag1 = Tag.objects.create(user=self.user, name='tag name 1')
         tag2 = Tag.objects.create(user=self.user, name='tag name 2')
 
-        recipe = Recipe.objects.create(
-            title='recipe 1',
-            time_minutes=10,
-            price=35.00,
-            user=self.user
-        )
+        recipe = create_recipe(user=self.user, title='rec 1')
         recipe.tags.add(tag1)
 
         response = self.client.get(TAGS_URL, {'assigned_only': 1})
@@ -96,3 +101,15 @@ class PrivateTagsApiTests(TestCase):
         tag2_serializer = TagSerializer(tag2)
         self.assertIn(tag1_serializer.data, response.data)
         self.assertNotIn(tag2_serializer.data, response.data)
+
+    def test_retrieve_assigned_returns_unique_tags(self):
+        """Test that retreiving assigned tags returns unique tags"""
+        tag = Tag.objects.create(user=self.user, name='tag name')
+        recipe1 = create_recipe(user=self.user, title='rec 1')
+        recipe2 = create_recipe(user=self.user, title='rec 2')
+        recipe1.tags.add(tag)
+        recipe2.tags.add(tag)
+
+        response = self.client.get(TAGS_URL, {'assigned_only': 1})
+
+        self.assertEqual(len(response.data), 1)

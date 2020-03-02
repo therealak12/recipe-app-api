@@ -13,6 +13,16 @@ from recipe.serializers import IngredientSerializer
 INGREDIENTS_URL = reverse('recipe:ingredient-list')
 
 
+def create_recipe(user, **params):
+    defaults = {
+        'title': 'recipe 1',
+        'time_minutes': 10,
+        'price': 35.00,
+    }
+    defaults.update(params)
+    return Recipe.objects.create(user=user, **defaults)
+
+
 def create_user(email='testemail@example.com', password='testpass'):
     return get_user_model().objects.create_user(email=email, password=password)
 
@@ -87,12 +97,7 @@ class PrivateIngredientsApiTests(TestCase):
             user=self.user,
             name='ing name 2'
         )
-        recipe = Recipe.objects.create(
-            title='recipe 1',
-            time_minutes=10,
-            price=35.00,
-            user=self.user
-        )
+        recipe = create_recipe(user=self.user, title='rec 1')
         recipe.ingredients.add(ingredient1)
 
         response = self.client.get(INGREDIENTS_URL, {'assigned_only': 1})
@@ -101,3 +106,17 @@ class PrivateIngredientsApiTests(TestCase):
         ingredient_serializer2 = IngredientSerializer(ingredient2)
         self.assertIn(ingredient_serializer1.data, response.data)
         self.assertNotIn(ingredient_serializer2.data, response.data)
+
+    def test_retrieve_assigned_returns_unique_ingredients(self):
+        """Test that retreiving assigned ingredients\
+             returns unique ingredients"""
+        ingredient = Ingredient.objects.create(
+            user=self.user, name='ingredient name')
+        recipe1 = create_recipe(user=self.user, title='rec 1')
+        recipe2 = create_recipe(user=self.user, title='rec 2')
+        recipe1.ingredients.add(ingredient)
+        recipe2.ingredients.add(ingredient)
+
+        response = self.client.get(INGREDIENTS_URL, {'assigned_only': 1})
+
+        self.assertEqual(len(response.data), 1)

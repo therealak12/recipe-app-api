@@ -40,8 +40,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
     authentication_classes = (TokenAuthentication,)
 
+    def _csv_to_int_list(self, csv):
+        """Convert comma serparated list to the corresponding int values"""
+        return [int(str_value) for str_value in csv.split(',')]
+
     def get_queryset(self):
-        return Recipe.objects.filter(user=self.request.user).order_by('id')
+        queryset = self.queryset
+        tags = self.request.query_params.get('tags', None)
+        ingredients = self.request.query_params.get('ingredients', None)
+
+        if tags:
+            tag_ids = self._csv_to_int_list(tags)
+            queryset = queryset.filter(tags__id__in=tag_ids)
+        if ingredients:
+            ingredient_ids = self._csv_to_int_list(ingredients)
+            queryset = queryset.filter(ingredients__id__in=ingredient_ids)
+
+        return queryset.filter(user=self.request.user).order_by('id')
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
